@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+
+import 'notification_service.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -21,21 +26,24 @@ class ChatService {
         'lastMessageSenderId': '',
         'unreadCount': {uid1: 0, uid2: 0},
         'chatClearedAt': {},
+        'hiddenFor': {},
       });
     }
   }
 
-  /// SEND MESSAGE (REVIVES CHAT)
+  /// SEND MESSAGE
   Future<void> sendMessage({
     required String senderId,
     required String receiverId,
     required String message,
+    required String senderName,
   }) async {
     final chatId = getChatId(senderId, receiverId);
-    final chatRef = _firestore.collection('chats').doc(chatId);
-
     await ensureChatExists(senderId, receiverId);
 
+    final chatRef = _firestore.collection('chats').doc(chatId);
+
+    // Save message
     await chatRef.collection('messages').add({
       'senderId': senderId,
       'receiverId': receiverId,
@@ -43,26 +51,26 @@ class ChatService {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    await chatRef.set({
-      'participants': [senderId, receiverId],
+    await chatRef.update({
       'lastMessage': message,
       'lastMessageTime': FieldValue.serverTimestamp(),
       'lastMessageSenderId': senderId,
       'unreadCount.$receiverId': FieldValue.increment(1),
-      'chatClearedAt.$senderId': FieldValue.delete(), // 🔥 revive
-      'chatClearedAt.$receiverId': FieldValue.delete(),
-    }, SetOptions(merge: true));
+      'hiddenFor.$senderId': FieldValue.delete(),
+      'hiddenFor.$receiverId': FieldValue.delete(),
+    });
   }
 
-  /// CLEAR CHAT FOR ME (WHATSAPP STYLE)
-  Future<void> clearChatForMe({
+  /// DELETE CHAT FOR CURRENT USER (WhatsApp style)
+  Future<void> deleteChatForMe({
     required String chatId,
     required String userId,
   }) async {
-    await _firestore.collection('chats').doc(chatId).set({
+    await _firestore.collection('chats').doc(chatId).update({
+      'hiddenFor.$userId': true,
       'chatClearedAt.$userId': FieldValue.serverTimestamp(),
       'unreadCount.$userId': 0,
-    }, SetOptions(merge: true));
+    });
   }
 
   /// GET CHAT LIST

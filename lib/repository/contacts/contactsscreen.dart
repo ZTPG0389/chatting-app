@@ -146,22 +146,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         context: context,
                         color: const Color(0XFFADB5BD),
                       ),
-                      onTap: () async {
-                        await chatService.ensureChatExists(
-                          widget.currentUserId,
-                          user.uid,
-                        );
+                        onTap: () async {
+                          // ensure chat exists + unhide
+                          await chatService.ensureChatExists(
+                            widget.currentUserId,
+                            user.uid,
+                          );
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatDetailScreen(
-                              currentUserId: widget.currentUserId,
-                              receiverId: user.uid,
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatDetailScreen(
+                                currentUserId: widget.currentUserId,
+                                receiverId: user.uid,
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        }
+
                     );
                   },
                 );

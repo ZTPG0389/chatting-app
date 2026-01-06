@@ -17,16 +17,12 @@ class ChatsScreen extends StatelessWidget {
     final minute = dt.minute.toString().padLeft(2, '0');
     final amPm = dt.hour >= 12 ? 'PM' : 'AM';
 
-    if (dt.day == now.day &&
-        dt.month == now.month &&
-        dt.year == now.year) {
+    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
       return "$hour:$minute $amPm";
     }
-
     if (dt.year == now.year) {
       return "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}";
     }
-
     return "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
   }
 
@@ -36,6 +32,7 @@ class ChatsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("Chats"),
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.scaffolddark
@@ -44,14 +41,27 @@ class ChatsScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: chatService.getUserChats(currentUserId),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          // Loading
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
+          // Error
+          if (snapshot.hasError) {
+            return const Center(child: Text("Something went wrong"));
+          }
+
+          // No data
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No chats yet"));
+          }
+
+          // UI level filter (WhatsApp style)
           final chats = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            final cleared = data['chatClearedAt'] ?? {};
-            return !cleared.containsKey(currentUserId);
+            final hidden =
+            Map<String, dynamic>.from(data['hiddenFor'] ?? {});
+            return hidden[currentUserId] != true;
           }).toList();
 
           if (chats.isEmpty) {
@@ -66,67 +76,56 @@ class ChatsScreen extends StatelessWidget {
               final data = chat.data() as Map<String, dynamic>;
 
               final participants = List<String>.from(data['participants']);
-              final otherUserId =
-              participants.firstWhere((e) => e != currentUserId);
+              final otherUserId = participants.firstWhere(
+                (e) => e != currentUserId,
+              );
 
-              final unread =
-                  data['unreadCount']?[currentUserId] ?? 0;
+              final unread = data['unreadCount']?[currentUserId] ?? 0;
 
-              return Dismissible(
-                key: ValueKey(chatId),
-                direction: DismissDirection.endToStart,
-                confirmDismiss: (_) async {
-                  return await showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text("Delete chat?"),
-                      content:
-                      const Text("This chat will be cleared for you."),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, false),
-                          child: const Text("Cancel"),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, true),
-                          child: const Text(
-                            "Delete",
-                            style: TextStyle(color: Colors.red),
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(otherUserId)
+                    .get(),
+                builder: (context, userSnap) {
+                  if (!userSnap.hasData) return const SizedBox();
+
+                  final userData =
+                      userSnap.data!.data() as Map<String, dynamic>;
+
+                  return GestureDetector(
+                    onLongPress: () async {
+                      final result = await showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text("Delete chat?"),
+                          content: const Text(
+                            "This will remove chat from your list and delete previous messages for you only.",
                           ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text("Cancel"),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text(
+                                "Delete",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
-                onDismissed: (_) {
-                  chatService.clearChatForMe(
-                    chatId: chatId,
-                    userId: currentUserId,
-                  );
-                },
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  color: Colors.red,
-                  child:
-                  const Icon(Icons.delete, color: Colors.white),
-                ),
-                child: FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(otherUserId)
-                      .get(),
-                  builder: (context, userSnap) {
-                    if (!userSnap.hasData) {
-                      return const SizedBox();
-                    }
-
-                    final userData =
-                    userSnap.data!.data() as Map<String, dynamic>;
-
-                    return ListTile(
+                      );
+                      if (result == true) {
+                        // Delete chat for current user only
+                        await chatService.deleteChatForMe(
+                          chatId: chatId,
+                          userId: currentUserId,
+                        );
+                      }
+                    },
+                    child: ListTile(
                       leading: CircleAvatar(
                         radius: 25,
                         backgroundImage: userData['profilePic'] != null
@@ -137,7 +136,8 @@ class ChatsScreen extends StatelessWidget {
                             : null,
                       ),
                       title: Text(
-                          "${userData['firstName']} ${userData['lastName']}"),
+                        "${userData['firstName']} ${userData['lastName']}",
+                      ),
                       subtitle: Text(
                         data['lastMessage'] ?? '',
                         maxLines: 1,
@@ -157,15 +157,15 @@ class ChatsScreen extends StatelessWidget {
                               child: Text(
                                 unread.toString(),
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white),
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                         ],
                       ),
                       onTap: () {
-                        chatService.resetUnread(
-                            currentUserId, otherUserId);
+                        chatService.resetUnread(currentUserId, otherUserId);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -176,9 +176,9 @@ class ChatsScreen extends StatelessWidget {
                           ),
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               );
             },
           );

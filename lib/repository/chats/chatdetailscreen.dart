@@ -27,6 +27,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   bool showEmojiPicker = false;
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
   String formatMsgTime(Timestamp? ts) {
     if (ts == null) return '';
     final dt = ts.toDate();
@@ -59,7 +64,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     bool isMe,
   ) async {
     if (!isMe) return;
-
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -132,7 +136,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               );
               Navigator.pop(context);
             },
-            child: const Text("Save"),
+            child: const Text("Save", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -215,7 +219,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
                       child: GestureDetector(
-                        onTap: () => _showEditDeleteOptions(msgData, isMe),
+                        onLongPress: () => _showEditDeleteOptions(msgData, isMe),
                         child: Container(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -327,7 +331,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   Row(
                     children: [
                       /// GRAMMAR FIX BUTTON
-                      /// GRAMMAR FIX BUTTON
                       GestureDetector(
                         onTap: () async {
                           if (messageController.text.trim().isEmpty) return;
@@ -373,12 +376,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         child: IconButton(
                           icon: const Icon(Icons.send, color: Colors.white),
                           onPressed: () async {
-                            if (messageController.text.trim().isEmpty) return;
+                            final text = messageController.text.trim();
+                            if (text.isEmpty) return;
 
+                            // Get sender name from Firestore
+                            final senderSnap = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(widget.currentUserId)
+                                .get();
+                            final senderData = senderSnap.data()!;
+                            final senderName = "${senderData['firstName']} ${senderData['lastName']}";
+
+                            // Send message + trigger notification
                             await chatService.sendMessage(
                               senderId: widget.currentUserId,
                               receiverId: widget.receiverId,
-                              message: messageController.text.trim(),
+                              message: text,
+                              senderName: senderName, // important
                             );
 
                             messageController.clear();
