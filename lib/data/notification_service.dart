@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -34,13 +33,13 @@ class NotificationService {
 
     // Foreground
     FirebaseMessaging.onMessage.listen((message) {
-      log("🔔 Foreground notification");
+      print("🔔 Foreground notification");
       showLocalNotification(message);
     });
 
     // Notification tap
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      log("📲 Notification clicked");
+      print("📲 Notification clicked");
     });
   }
 
@@ -69,7 +68,7 @@ class NotificationService {
   static Future<void> backgroundHandler(
       RemoteMessage message) async {
     await Firebase.initializeApp();
-    log("🌙 Background notification");
+    print("🌙 Background notification");
     showLocalNotification(message);
   }
 }

@@ -3,6 +3,8 @@ import 'package:chatapp/repository/screens/onboarding/onboardingscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'data/fcm_token_service.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -26,6 +28,11 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (user != null) {
+      // Save FCM token
+      await FCMTokenService().saveToken(user.uid);
+      FCMTokenService().listenTokenRefresh(user.uid);
+
+
       // User already logged in → BottomNavScreen
       Navigator.pushReplacement(
         context,

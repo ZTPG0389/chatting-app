@@ -59,8 +59,7 @@ class ChatsScreen extends StatelessWidget {
           // UI level filter (WhatsApp style)
           final chats = snapshot.data!.docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
-            final hidden =
-            Map<String, dynamic>.from(data['hiddenFor'] ?? {});
+            final hidden = Map<String, dynamic>.from(data['hiddenFor'] ?? {});
             return hidden[currentUserId] != true;
           }).toList();
 
@@ -138,10 +137,43 @@ class ChatsScreen extends StatelessWidget {
                       title: Text(
                         "${userData['firstName']} ${userData['lastName']}",
                       ),
-                      subtitle: Text(
-                        data['lastMessage'] ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      subtitle: FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('chats')
+                            .doc(chatId)
+                            .collection('messages')
+                            .orderBy('timestamp', descending: true)
+                            .limit(1)
+                            .get(),
+                        builder: (context, lastMsgSnap) {
+                          if (!lastMsgSnap.hasData ||
+                              lastMsgSnap.data!.docs.isEmpty) {
+                            return const SizedBox();
+                          }
+
+                          final lastMsgData =
+                              lastMsgSnap.data!.docs.first.data()
+                                  as Map<String, dynamic>;
+                          final text = lastMsgData['text'] ?? '';
+                          final isDeleted = lastMsgData['isDeleted'] ?? false;
+
+                          return Text(
+                            text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontStyle: isDeleted
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                              color: isDeleted
+                                  ? Colors.grey
+                                  : Theme.of(context).brightness ==
+                                        Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black87,
+                            ),
+                          );
+                        },
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

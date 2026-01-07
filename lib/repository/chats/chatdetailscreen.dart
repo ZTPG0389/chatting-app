@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../data/chat_service.dart';
 import '../../domain/constants/appcolors.dart';
-import '../screens/widgets/grammer_helper.dart';
+import '../screens/widgets/ai_helper.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String currentUserId;
@@ -41,14 +41,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return "$hour:$minute $amPm";
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  void _scrollToBottom({bool smooth = true}) {
+    if (!_scrollController.hasClients) return;
+
+    // Check if the user is already near bottom (avoid jumping if they are reading older messages)
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    final distanceFromBottom = maxScroll - currentScroll;
+
+    // Only auto-scroll if user is close to bottom (e.g., within 100px)
+    if (distanceFromBottom > 100 && smooth) return;
+
+    _scrollController.animateTo(
+      maxScroll,
+      duration: Duration(milliseconds: smooth ? 300 : 0),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -219,7 +227,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
                       child: GestureDetector(
-                        onLongPress: () => _showEditDeleteOptions(msgData, isMe),
+                        onLongPress: () =>
+                            _showEditDeleteOptions(msgData, isMe),
                         child: Container(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -312,6 +321,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           showEmojiPicker = false;
                         });
                       },
+                      minLines: 1,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
                       decoration: InputDecoration(
                         hintText: "Type a message",
                         contentPadding: const EdgeInsets.symmetric(
@@ -330,40 +342,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   const SizedBox(width: 8),
                   Row(
                     children: [
-                      /// GRAMMAR FIX BUTTON
                       GestureDetector(
                         onTap: () async {
                           if (messageController.text.trim().isEmpty) return;
 
-                          // Unfocus keyboard (optional, looks cleaner)
+                          final prompt = messageController.text.trim();
                           focusNode.unfocus();
 
-                          // Get current text
-                          final text = messageController.text.trim();
-
-                          // Call your intelligent grammar + spelling helper
-                          String corrected = await GrammarHelper.fixText(text);
-
-                          // Update TextField
                           setState(() {
-                            messageController.text = corrected;
-                            messageController.selection =
-                                TextSelection.fromPosition(
-                                  TextPosition(offset: corrected.length),
-                                );
+                            messageController.text = "🧠 Generating...";
                           });
+
+                          try {
+                            String result = await AIHelper.getSuggestion(prompt);
+
+                            setState(() {
+                              messageController.text = result;
+                              messageController.selection = TextSelection.fromPosition(
+                                TextPosition(offset: result.length),
+                              );
+                            });
+                          } catch (e) {
+                            setState(() {
+                              messageController.text = prompt;
+                            });
+                            print("Gemini error: $e");
+                          }
                         },
                         child: Container(
-                          padding: const EdgeInsets.all(10), // bigger tap area
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.orange,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.auto_fix_high,
-                            color: Colors.white,
-                            size: 23,
-                          ),
+                          child: const Icon(Icons.auto_fix_high, color: Colors.white),
                         ),
                       ),
 
@@ -385,7 +397,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                                 .doc(widget.currentUserId)
                                 .get();
                             final senderData = senderSnap.data()!;
-                            final senderName = "${senderData['firstName']} ${senderData['lastName']}";
+                            final senderName =
+                                "${senderData['firstName']} ${senderData['lastName']}";
 
                             // Send message + trigger notification
                             await chatService.sendMessage(

@@ -222,6 +222,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.1.1"
+  flutter_dotenv:
+    dependency: "direct main"
+    description:
+      name: flutter_dotenv
+      sha256: b7c7be5cd9f6ef7a78429cabd2774d3c4af50e79cb2b7593e3d5d763ef95c61b
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.2.1"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -272,6 +280,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  freezed_annotation:
+    dependency: transitive
+    description:
+      name: freezed_annotation
+      sha256: "7294967ff0a6d98638e7acb774aac3af2550777accd8149c90af5b014e6d44d8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.0"
   http:
     dependency: "direct main"
     description:
@@ -288,6 +304,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  json_annotation:
+    dependency: transitive
+    description:
+      name: json_annotation
+      sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.9.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -352,6 +376,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  openai_dart:
+    dependency: "direct main"
+    description:
+      name: openai_dart
+      sha256: "037605a210cb3b1d8ac72b11a4ace26f25ee9267aaf981d2af1d7f0524adcbf5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.2"
   path:
     dependency: transitive
     description:

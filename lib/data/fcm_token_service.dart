@@ -12,7 +12,7 @@ class FCMTokenService {
     final token = await _messaging.getToken();
     if (token == null) return;
 
-    log("📱 FCM TOKEN: $token");
+    print("📱 FCM TOKEN: $token");
 
     await _firestore.collection('users').doc(userId).set({
       'fcmToken': token,
@@ -23,7 +23,7 @@ class FCMTokenService {
   /// Refresh token
   void listenTokenRefresh(String userId) {
     _messaging.onTokenRefresh.listen((newToken) async {
-      log("♻️ FCM TOKEN REFRESHED");
+      print("♻️ FCM TOKEN REFRESHED");
 
       await _firestore.collection('users').doc(userId).update({
         'fcmToken': newToken,
